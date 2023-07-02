@@ -1,0 +1,1 @@
+[error,U, P, g, h] = rspectral(A, lambda, k, m)
