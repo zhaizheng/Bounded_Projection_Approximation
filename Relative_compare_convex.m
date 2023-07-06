@@ -2,36 +2,20 @@
 
 
 addpath('./funs/')
-%s= [30,20,30];
-s = [25 25 25]
-noise = [0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8];
-signal = [0.42,0.45,0.48,0.51,0.54,0.57,0.6,0.63];
+%s = [30,20,30];
+%s= [30,25,30];
+s = [25 25 25];
+noise = [0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8];
+signal = [0.42,0.51,0.54,0.57,0.6,0.63,0.66,0.69,0.72];
 repk = 100;
 
-
-% t = tiledlayout(1,5,'TileSpacing','Compact');
-% nexttile
-% xlabel('fadf')
-% imagesc(S)
-% 
-% nexttile
-% xlabel('fadf')
-% imagesc(result1.X)
-% 
-% nexttile
-% imagesc(result2.X)
-% 
-% nexttile
-% imagesc(P)
-% 
-% nexttile
-% imagesc(result3.X)
 
 %class = 2; lab = [ones(1,20),2*ones(1,20)]';
 RESULT = zeros(10,10);
 rep = 10;
 IMPROVE = zeros(10,10);
-for i = 1:8
+for i = 2:8
+    tic
     Result = zeros(10,10);
     Intermedia_result = zeros(rep,10);
     Intermedia = cell(1,5);
@@ -56,21 +40,29 @@ for i = 1:8
         Intermedia{3} = S;
         [Acc3, Nmi3] = rep_kmeans(U, class, lab, repk);
 
-        fname = 'ell_F^2'; eta = sum(s.^2); c = 3; theta = 1; tau = 0.001;
+        fname = 'ell_F^2'; eta = sum(s.^2); c = 3; theta = 3; tau = 0.001;
         [Z,U] = SSL2(fname,S,eta,c,theta,tau); 
         [U4,~] = principal_k(Z, K);
         [Acc4, Nmi4] = rep_kmeans(U4, class, lab, repk);
         Intermedia{4} = Z;
 
 
-        lambda = 1; n_iter = 1000;
+        lambda = 0.12; n_iter = 100000;
         [A, ~, ~] = CLR_zz(S, lambda, K, n_iter);
         [U5,~] = principal_k(A+A', K);
         [Acc5, Nmi5] = rep_kmeans(U5, class, lab, repk);
         Intermedia{5} = A+A';
         
+        init = zeros(size(S));
+        for o = 1:5
+            init = init+Intermedia{o};
+        end
+        rho = 10:30:130;
         for ss = 1:5
-            MM = ADMMnm(Intermedia{ss}, 100000, K, 0, 0.04, Intermedia{ss});  %U*U'+result1.X+Z
+            %MM = ADMMnm(S, 100000, K, 0.04*0.02, 0.98*0.04, init-Intermedia{2});  %U*U'+result1.X+Z
+            %MM = ADMMnm(S, rho(ss), K, 0.05*0.02, 0.98*0.05, init-Intermedia{2}); 
+            MM = ADMMnm(S, rho(ss), K, 0, 0.04, result1.X); 
+            %MM = ADMMnm(S, 1000, K, 0, 0.04, init-Intermedia{2});  %U*U'+result1.X+Z
             WER = MM.X;
             [UMM,~] = principal_k(WER+WER', K);
             [Intermedia_result(j,ss), Intermedia_result(j,ss+5)] = rep_kmeans(UMM, class, lab, repk);
@@ -78,8 +70,34 @@ for i = 1:8
 
         resultACC = [Acc1,Acc2,Acc3,Acc4, Acc5];
         resultNmi = [Nmi1,Nmi2,Nmi3,Nmi4, Nmi5];
-        Result(j,:) = [resultACC, resultNmi];
+        Result(j,:) = [resultACC, resultNmi];     
+
         %[resultACC,resultNmi]
+    end
+    %%
+    if i == 1
+
+        t = tiledlayout(1,7,'TileSpacing','Compact');
+        nexttile
+        imagesc(S)
+        
+        nexttile
+        imagesc(result1.X)
+        
+        nexttile
+        imagesc(result2.X)
+        
+        nexttile
+        imagesc(P)
+
+        nexttile
+        imagesc(Z)
+
+        nexttile
+        imagesc(A+A')
+        
+        nexttile
+        imagesc(MM.X)
     end
     mean(Result,1)
     mean(Intermedia_result,1)
@@ -87,12 +105,17 @@ for i = 1:8
     IMPROVE(i,:) = mean(Intermedia_result,1);
     RESULT
     IMPROVE
+    elapsed = toc;
+    fprintf('time cost is: %f second per iteration\n',elapsed)
 end
+%%
+fprintf('\n')
 FINAL = [];
-for i = 1:10
-    FINAL  = [FINAL,[RESULT(:,i),IMPROVE(:,i)]];
-end
-
+FINAL = [FINAL,[RESULT(:,1:5), max(IMPROVE(:,1:5),[],2)]];
+FINAL = [FINAL,[RESULT(:,6:10), max(IMPROVE(:,6:10),[],2)]];
+% for i = 1:10
+%     FINAL  = [FINAL,[RESULT(:,i),IMPROVE(:,i)]];
+% end
 format_convert(FINAL)
 
 
